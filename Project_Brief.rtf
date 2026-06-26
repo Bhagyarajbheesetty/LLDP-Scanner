@@ -1,0 +1,65 @@
+{\rtf1\ansi\deff0
+{\fonttbl
+{\f0\fnil\fcharset0 Calibri;}
+{\f1\fnil\fcharset0 Consolas;}
+}
+{\colortbl ;\red0\green0\blue0;\red0\green0\blue255;\red0\green128\blue0;}
+\viewkind4\uc1\pard\sa200\sl276\slmult1\lang9\f0\fs22
+LLDP Network Device Scanner – Code Brief\par
+\par
+\section{Project Overview}\par
+This Windows application captures and displays Link Layer Discovery Protocol (LLDP) packets in real time via a Tkinter GUI. It uses Npcap (WinPcap‑API compatible mode) for packet sniffing and parses LLDP TLVs to show device information.\par
+\par
+\section{File Structure}\par
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\fi-720\li720\fi-720\lang9\f1\fs20
+\bullet\tab lldp_gui.py\tab Main GUI application (Tkinter window, widgets, event handling).\line
+\bullet\tab lldp_scanner.py\tab Core LLDP capture and parsing logic (uses ctypes to interface with wpcap.dll).\line
+\bullet\tab lldp_utils/interface.py\tab Helper to list network interfaces with friendly names.\line
+\bullet\tab lldp_utils/\_\_init\_\_.py\b0\ (package marker).\line
+\bullet\tab requirements.txt\tab Python dependencies (pyinstaller, etc.).\line
+\bullet\tab build_exe.bat\tab Batch script to build the executable with PyInstaller.\line
+\bullet\tab lldp_scanner_settings.json\tab Persistent UI settings (created at runtime).\line
+\bullet\tab README.md\tab User documentation.\line
+\bullet\tab Project_Brief.md\tab This technical brief.\par
+\pard\sa200\sl276\slmult1\lang9\f0\fs22
+\par
+\section{Key Code Highlights}\par
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\fi-720\li720\fi-720\lang9\f1\fs20
+\bullet\tab lldp_gui.py\tab
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\fi-720\li720\fi-720\lang9\f0\fs22
+\begin{itemize}
+\item \texttt{LLDPScannerGUI} class builds the UI: left pane (interface selector), right pane (toolbar + results treeview).\item Interface selector uses a \texttt{tk.Listbox} with fixed width (25 chars) and functional vertical/horizontal scrollbars.\item Toolbar holds Start/Stop/Export/Columns/Toggle Theme/Clear buttons left‑aligned; a Search \texttt{ttk.Entry} right‑aligned on the same row.\item Results displayed in a \texttt{ttk.Treeview} with columns for timestamp, interface, chassis ID, port ID, TTL, system name, port description, capabilities, and management address.\item No vertical scrollbar on the treeview (removed per request); horizontal scrolling is not needed as column widths fit window.\item Column visibility toggled via a pop‑up menu; widths and hidden state stored in \texttt{self.column\_widths} and \texttt{self.hidden\_columns} and persisted to JSON.\item Dark/light theme switching via \texttt{ttk.Style}; listbox and scrollbars manually recoloured for dark mode.\item Real‑time updates: LLDP callback runs in a worker thread and uses \texttt{root.after(0, self.add\_result, info, ifname)} to insert new rows at the top.\item Search filtering: \texttt{StringVar} trace triggers \texttt{on\_search\_change} which rebuilds the treeview from \texttt{self.all\_results} list.\item Export to CSV writes all currently visible rows (matching any filter).\item Settings loaded/saved via JSON on start/exit.\end{itemize}
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\fi-720\li720\fi-720\lang9\f1\fs20
+\bullet\tab lldp_scanner.py\tab
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\fi-720\li720\fi-720\lang9\f0\fs22
+\begin{itemize}
+\item \texttt{LLDPScanner} class wraps a raw socket via \texttt{ctypes.WinDLL('wpcap.dll')} (or \texttt{npfc.dll}) using Npcap.\item Sets a BPF filter for Ethernet type 0x88CC (LLDP).\item Reads packets in a loop until \texttt{self.running} is False.\item Parses Ethernet header, validates EtherType, then walks through LLDP chassis/port/TLV structures.\item Extracts fields: Chassis ID subtype/value, Port ID subtype/value, TTL, Optional TLVs (System Name, Port Description, System Capabilities, Management Address).\item Management Address TLV handling: if subtype == 1 (IPv4) converts 4‑byte address to dotted decimal; otherwise returns raw bytes/hex string.\item Returns a dictionary of discovered neighbor info to the GUI callback.\end{itemize}
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\fi-720\li720\fi-720\lang9\f0\fs22
+\par
+\section{Build Process}\par
+The batch file \texttt{build\_exe.bat} runs:\begin{enumerate}
+\item \texttt{pip install -r requirements.txt}\item \texttt{pyinstaller --onefile --name LLDP-scanner lldp\_gui.py}\end{enumerate}
+The resulting executable is placed in \texttt{dist\\LLDP‑scanner.exe}. It bundles the Python interpreter, required DLLs (including wpcap/npfc), and all Python modules.\par
+\par
+\section{Usage Notes}\par
+\begin{itemize}
+\item Run the executable.
+\item Requires Administrator privileges for raw socket access.
+\item Npcap must be installed in WinPcap‑API compatible mode.
+\item LLDP is link‑local; only directly‑connected neighbours appear.
+\item If no LLDP traffic is present, the idle UI waits until a packet arrives or the user stops the scan.
+\item The UI theme persists across sessions via \texttt{lldp\_scanner\_settings.json}.
+\end{itemize}
+\par
+\section{Future Enhancements}\par
+\begin{itemize}
+\item Add LLDP‑MED (Media Endpoint Discovery) support.
+\item Provide a raw‑packet view window.
+\item Allow configurable packet‑capture buffer size.
+\item Offer 64‑bit‑only build to reduce size.
+\item Implement autosave of settings on change (rather than only on exit).
+\end{itemize}
+\par
+\pard\sa200\sl276\slmult1\lang9\f0\fs22
+Generated 2026‑06‑26 for project closure.
+}

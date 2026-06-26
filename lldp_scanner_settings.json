@@ -1,0 +1,19 @@
+{
+    "dark_mode": false,
+    "column_widths": {
+        "timestamp": 21,
+        "interface": 180,
+        "chassis_id": 34,
+        "port_id": 285,
+        "ttl": 226,
+        "sys_name": 193,
+        "port_desc": 33,
+        "sys_cap": 211,
+        "mgmt_addr": 97
+    },
+    "hidden_columns": [
+        "chassis_id",
+        "port_desc"
+    ],
+    "search_text": ""
+}

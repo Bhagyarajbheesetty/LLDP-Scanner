@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python -m py_compile lldp_gui.py)",
+      "PowerShell(& \"C:\\\\Users\\\\Bbheesetty\\\\chitti\\\\build_exe.bat\")",
+      "PowerShell(& python \"C:\\\\Users\\\\Bbheesetty\\\\chitti\\\\lldp_gui.py\")",
+      "PowerShell(Start-Process -FilePath \"python\" -ArgumentList \"`\"C:\\\\Users\\\\Bbheesetty\\\\chitti\\\\lldp_gui.py`\"\" -Wait -Timeout 5)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c\", \"build_exe.bat\" -Verb RunAs)",
+      "PowerShell(Start-Process -FilePath \"dist\\\\LLDP-scanner.exe\" -Verb RunAs)",
+      "PowerShell(cmd.exe /c \"build_exe.bat\")",
+      "PowerShell(ls *)",
+      "PowerShell(& cmd /c build_exe.bat)",
+      "PowerShell(cmd /c .\\\\build_exe.bat)",
+      "PowerShell(Get-Process *)",
+      "PowerShell($lines = Get-Content lldp_gui.py; for \\($i=0; $i -lt $lines.Count; $i++\\) { if \\($lines[$i] -match 'def _configure_grid_weights'\\) { $i; break } })",
+      "PowerShell($lines = Get-Content lldp_gui.py; for \\($i=0; $i -lt $lines.Count; $i++\\) { if \\($lines[$i] -match 'def _create_interface_selector'\\) { $i; break } })",
+      "PowerShell($lines = Get-Content lldp_gui.py; $start = 99; $lines[$start..\\($lines.Count-1\\)] | ForEach-Object { \"{0,4}: {1}\" -f \\($start + $_.PSObject.Properties['PSClass'].Name -replace '^\\\\d+\\\\.',''\\), $_ })",
+      "PowerShell($lines = Get-Content lldp_gui.py; $start = 99; for \\($i = $start; $i -lt $lines.Count; $i++\\) { \"{0,4}: {1}\" -f $i, $lines[$i] })",
+      "PowerShell(\\(Get-Content lldp_gui.py\\).Count)",
+      "PowerShell(wc *)",
+      "PowerShell(Skip 130 *)",
+      "PowerShell($idxConfig = -1; for \\($i=0; $i -lt $lines.Length; $i++\\) { if \\($lines[$i] -match 'def _configure_grid_weights'\\) { $idxConfig = $i; break } }; $idxConfig)",
+      "PowerShell($p = Start-Process -FilePath \".\\\\dist\\\\LLDP-scanner.exe\" -PassThru; Start-Sleep -Seconds 5; if \\(-not \\($p.HasExited\\)\\) { Stop-Process -Id $p.Id -Force } else { Write-Host \"Process exited with code $\\($p.ExitCode\\)\" })",
+      "PowerShell(Get-Content *)",
+      "PowerShell($p = Start-Process .\\\\dist\\\\LLDP-scanner.exe -PassThru; Start-Sleep 10; if \\($p.HasExited\\) { Write-Host \"Exited with code $\\($p.ExitCode\\)\" } else { Write-Host \"Still running after 10 seconds\"; Stop-Process -Id $p.Id -Force })",
+      "PowerShell(Start-Process -FilePath \".\\\\dist\\\\LLDP-scanner.exe\" -NoNewWindow -Wait -Timeout 5)",
+      "PowerShell($p = Start-Process .\\\\dist\\\\LLDP-scanner.exe -NoNewWindow -PassThru; Start-Sleep 5; if \\(-not \\($p.HasExited\\)\\) { Stop-Process $p.Id -Force; Write-Host \"Killed after 5 seconds\" } else { Write-Host \"Exited with code $\\($p.ExitCode\\)\" })",
+      "PowerShell(& python -m py_compile lldp_gui.py)",
+      "PowerShell($p = Start-Process python -ArgumentList \"lldp_gui.py\" -RedirectStandardOutput \"out.txt\" -RedirectStandardError \"err.txt\" -PassThru; Start-Sleep -Seconds 5; if \\(-not \\($p.HasExited\\)\\) { Stop-Process -Id $p.Id -Force }; Get-Content .\\\\err.txt)",
+      "PowerShell(python -c \"import lldp_gui\")",
+      "PowerShell($p = Start-Process .\\\\dist\\\\LLDP-scanner.exe -RedirectStandardOutput \"out2.txt\" -RedirectStandardError \"err2.txt\" -PassThru; Start-Sleep -Seconds 5; if \\(-not \\($p.HasExited\\)\\) { Stop-Process -Id $p.Id -Force }; Get-Content .\\\\err2.txt)",
+      "PowerShell($p = Start-Process .\\\\dist\\\\LLDP-scanner.exe -RedirectStandardOutput \"out4.txt\" -RedirectStandardError \"err4.txt\" -PassThru; Start-Sleep -Seconds 5; if \\(-not \\($p.HasExited\\)\\) { Stop-Process -Id $p.Id -Force })",
+      "PowerShell(cmd /c build_exe.bat)",
+      "PowerShell(& \".\\\\build_exe.bat\")",
+      "PowerShell(python -c \"import lldp_gui; print\\('Import successful'\\)\")"
+    ]
+  }
+}
