@@ -14,7 +14,7 @@ A lightweight Windows application that discovers network devices using the Link 
   - Extracts and displays IPv4 addresses in dotted‑decimal format (e.g., `192.168.1.1`).
   - Gracefully falls back to raw data for IPv6 or other address types.
 - **Result Export**: Click **Export Results** during or after a scan to save the entire table to a CSV file (UTF‑8 encoded) with a user‑chosen filename.
-- **Result Filtering**: Type in the **Search** box above the results table to filter rows in real‑time by any column (interface, chassis ID, system name, etc.).
+- **Result Filtering**: Type in the **Search** box above the results table to filter rows in real‑time by any column (interface, chassis ID, system name, etc.). The search box is now positioned on the right side of the toolbar for a cleaner layout.
 - **Column Visibility Control**: Click the **Columns** button (or right‑click any column header) to show/hide columns via a check‑box menu; visibility and column widths are persisted across sessions.
 - **Dark / Light Theme Toggle**: Use the **Toggle Theme** button to switch between a light (native Windows) and a dark theme; preference is saved and restored.
 - **Persistent Settings**: The application remembers your last‑selected interface, window size/position, column widths, hidden columns, theme choice, and search text, restoring them on the next launch.
@@ -55,10 +55,10 @@ A lightweight Windows application that discovers network devices using the Link 
    - The button grays out, **Stop Scan** becomes active, and the status bar shows `Scanning on <interface>`.
 4. Discovered devices appear in the table on the right, with the newest entries at the top.
    - The **Management Address** column shows a readable IP address when available (e.g., `192.168.1.1`).
-5. Use the **Search** box above the table to filter results instantly by any column.
+5. Use the **Search** box above the table to filter results instantly by any column. The search box is now located on the right side of the toolbar.
 6. Click the **Columns** button (or right‑click any column header) to show or hide columns; your visibility choices and column widths are remembered.
 7. Click **Toggle Theme** to switch between a light and a dark appearance; your preference is saved.
-8. To stop capturing, click **Stop Scan**. Controls revert to their initial state.
+8. To stop capturing, click **Stop Scan**. Controls return to their initial state.
 9. While scanning or after stopping (if results exist), click **Export Results** to save the table to a CSV file of your choice.
 10. Click **Clear Results** to remove all displayed entries.
 11. Close the window to exit the application.
@@ -89,4 +89,5 @@ The GUI version runs a simple Tkinter interface that updates in real‑time as L
 This project is provided as‑is for educational purposes. Feel free to modify and redistribute.
 
 ---
+
 *Built with Python, Tkinter, and PyInstaller.*
