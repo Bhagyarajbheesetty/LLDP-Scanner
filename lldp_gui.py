@@ -134,6 +134,9 @@ class LLDPScannerGUI:
         self.export_btn.pack(side=tk.LEFT, padx=5)
 
         self.status_var = tk.StringVar(value="Ready")
+        self.clear_btn = ttk.Button(button_frame, text="Clear Results",
+                                    command=self.clear_results)
+        self.clear_btn.pack(side=tk.LEFT, padx=5)
         ttk.Label(button_frame, textvariable=self.status_var).pack(
             side=tk.LEFT, padx=(20, 0)
         )
@@ -248,6 +251,9 @@ class LLDPScannerGUI:
                 # This runs in the scanner thread, so we need to schedule GUI update
                 self.root.after(0, self.add_result, info, ifname)
 
+            # Clear previous results when starting a new scan
+            for item in self.tree.get_children():
+                self.tree.delete(item)
             self.scanner.set_callback(lldp_callback)
             self.scanner.start()
 
@@ -276,6 +282,12 @@ class LLDPScannerGUI:
         self.start_btn.config(state="normal")
         self.stop_btn.config(state="disabled")
         self.status_var.set("Scan stopped")
+
+    def clear_results(self):
+        """Clear all results from the treeview."""
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        self.status_var.set("Results cleared")
 
     def export_results(self):
         """Export scan results to a CSV file"""
