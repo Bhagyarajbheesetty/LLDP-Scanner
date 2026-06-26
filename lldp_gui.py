@@ -6,10 +6,12 @@ A simple graphical interface for the LLDP scanner.
 
 import sys
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, Menu
 import threading
 import time
 from datetime import datetime
+import json
+import os
 
 from lldp_scanner import LLDPScanner
 from lldp_utils.interface import list_interfaces
@@ -22,9 +24,23 @@ class LLDPScannerGUI:
         self.scanner = None
         self.scanning = False
         self.selected_iface_npf = None  # store the NPF name of selected item
+        self.all_results = []  # store all results for filtering
+        self.current_filter = tk.StringVar()
+        self.current_filter.trace_add("write", self.on_search_change)
+        self.settings_file = os.path.join(os.path.dirname(__file__), 'lldp_scanner_settings.json')
+        # Theme handling
+        self.dark_mode = False
+        self.style = ttk.Style()
+        # Column visibility
+        self.column_widths = {}  # store original widths for hidden columns
+        self.hidden_columns = set()
+        self._column_vars = {}  # store BooleanVars for column menu checkbuttons
 
         self.create_widgets()
         self.load_interfaces()
+        self.load_settings()
+        self.apply_settings()
+        self.apply_theme()  # apply initial theme (light)
 
     def _setup_window(self):
         """Configure the main window properties."""
@@ -58,24 +74,67 @@ class LLDPScannerGUI:
         # ---- create right pane (controls + results) ------------------------
         self.right_frame = ttk.Frame(main_frame)
         self.right_frame.grid(row=0, column=1, sticky=(tk.N, tk.S, tk.W, tk.E))
-        # row 0: button frame (fixed height)
+        # row 0: button frame + search frame (horizontal)
         # row 1: label for results (fixed height)
         # row 2: treeview (expandable)
-        self.right_frame.rowconfigure(0, weight=0)
-        self.right_frame.rowconfigure(1, weight=0)
-        self.right_frame.rowconfigure(2, weight=1)
-        self.right_frame.columnconfigure(0, weight=1)
-        self._create_button_frame(self.right_frame, row=0)
-        self._create_results_area(self.right_frame, row=1)
+        self.right_frame.rowconfigure(0, weight=0)   # button/search row
+        self.right_frame.rowconfigure(1, weight=0)   # results label
+        self.right_frame.rowconfigure(2, weight=1)   # treeview expands
+        self.right_frame.columnconfigure(0, weight=0) # left side (buttons) fixed width
+        self.right_frame.columnconfigure(1, weight=1) # spacer expands
+        self.right_frame.columnconfigure(2, weight=0) # right side (search) fixed width
 
+        # button frame (left side of row 0)
+        button_frame = ttk.Frame(self.right_frame)
+        button_frame.grid(row=0, column=0, sticky=tk.W, padx=(0,5), pady=(0,10))
+        self._create_button_frame_contents(button_frame)
+
+        # search frame (right side of row 0)
+        self._create_search_frame(self.right_frame, row=0, column=2, padx=(5,0), pady=(0,10), sticky=tk.E)
+
+        # results label and treeview (spanning all three columns, rows 1-2)
+        self._create_results_area(self.right_frame, row=1, column=0, columnspan=3)
+
+    def _create_button_frame_contents(self, parent):
+        """Create the button frame with start/stop controls (to be placed inside a given parent)."""
+        self.start_btn = ttk.Button(parent, text="Start Scan",
+                                    command=self.start_scanning, state="disabled")
+        self.start_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        self.stop_btn = ttk.Button(parent, text="Stop Scan",
+                                   command=self.stop_scanning, state="disabled")
+        self.stop_btn.pack(side=tk.LEFT, padx=5)
+
+        # Add Export button
+        self.export_btn = ttk.Button(parent, text="Export Results",
+                                     command=self.export_results, state="disabled")
+        self.export_btn.pack(side=tk.LEFT, padx=5)
+
+        # Add Columns button
+        self.columns_btn = ttk.Button(parent, text="Columns",
+                                      command=self.show_column_menu)
+        self.columns_btn.pack(side=tk.LEFT, padx=5)
+
+        # Add Toggle Theme button
+        self.theme_btn = ttk.Button(parent, text="Toggle Theme",
+                                    command=self.toggle_theme)
+        self.theme_btn.pack(side=tk.LEFT, padx=5)
+
+        self.status_var = tk.StringVar(value="Ready")
+        self.clear_btn = ttk.Button(parent, text="Clear Results",
+                                    command=self.clear_results)
+        self.clear_btn.pack(side=tk.LEFT, padx=5)
+        ttk.Label(parent, textvariable=self.status_var).pack(
+            side=tk.LEFT, padx=(20, 0)
+        )
 
     def _configure_grid_weights(self, main_frame):
         """Configure grid weights for resizing behavior."""
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        # Two columns: list area (width heavier) and controls/results area
-        main_frame.columnconfigure(0, weight=3)   # list area gets more width
-        main_frame.columnconfigure(1, weight=1)   # controls+results area
+        # Two columns: list area (fixed width) and controls/results area (expands)
+        main_frame.columnconfigure(0, weight=0)   # list area fixed width
+        main_frame.columnconfigure(1, weight=1)   # controls+results area expands
         # Single row that expands vertically
         main_frame.rowconfigure(0, weight=1)
 
@@ -85,18 +144,20 @@ class LLDPScannerGUI:
             row=0, column=0, sticky=tk.W, pady=(0, 5)
         )
 
-        # Frame that holds the listbox + scrollbar
+        # Frame that holds the listbox + scrollbars
         list_frame = ttk.Frame(parent)
         list_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S),
                         pady=(0, 5))
-        list_frame.columnconfigure(0, weight=1)
-        list_frame.rowconfigure(0, weight=1)
+
+        # Container for listbox and vertical scrollbar (will expand to fill available space)
+        list_container = ttk.Frame(list_frame)
+        list_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         # ----- listbox -------------------------------------------------------
         self.interface_listbox = tk.Listbox(
-            list_frame,
+            list_container,
             height=10,                     # visible items
-            width=0,                       # characters (will expand to fill column)
+            width=25,                      # fixed width in characters (reduced)
             exportselection=False,
             relief='sunken',
             borderwidth=2,
@@ -106,14 +167,20 @@ class LLDPScannerGUI:
             selectforeground='white',
             activestyle='none'
         )
-        self.interface_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.interface_listbox.pack(side=tk.LEFT, fill=tk.Y, expand=False)
         self.interface_listbox.bind('<<ListboxSelect>>', self.on_interface_select)
 
-        # ----- scrollbar -----------------------------------------------------
-        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL,
-                                  command=self.interface_listbox.yview)
-        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        self.interface_listbox.configure(yscrollcommand=scrollbar.set)
+        # ----- vertical scrollbar --------------------------------------------
+        self.interface_v_scrollbar = ttk.Scrollbar(list_container, orient=tk.VERTICAL)
+        self.interface_v_scrollbar.pack(side=tk.LEFT, fill=tk.Y)
+        self.interface_listbox.configure(yscrollcommand=self.interface_v_scrollbar.set)
+        self.interface_v_scrollbar.configure(command=self.interface_listbox.yview)
+
+        # ----- horizontal scrollbar ------------------------------------------
+        self.interface_h_scrollbar = ttk.Scrollbar(list_frame, orient=tk.HORIZONTAL)
+        self.interface_h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.interface_listbox.configure(xscrollcommand=self.interface_h_scrollbar.set)
+        self.interface_h_scrollbar.configure(command=self.interface_listbox.xview)
 
     def _create_button_frame(self, parent, row=0):
         """Create the button frame with start/stop controls."""
@@ -133,6 +200,16 @@ class LLDPScannerGUI:
                                      command=self.export_results, state="disabled")
         self.export_btn.pack(side=tk.LEFT, padx=5)
 
+        # Add Columns button
+        self.columns_btn = ttk.Button(button_frame, text="Columns",
+                                      command=self.show_column_menu)
+        self.columns_btn.pack(side=tk.LEFT, padx=5)
+
+        # Add Toggle Theme button
+        self.theme_btn = ttk.Button(button_frame, text="Toggle Theme",
+                                    command=self.toggle_theme)
+        self.theme_btn.pack(side=tk.LEFT, padx=5)
+
         self.status_var = tk.StringVar(value="Ready")
         self.clear_btn = ttk.Button(button_frame, text="Clear Results",
                                     command=self.clear_results)
@@ -141,10 +218,29 @@ class LLDPScannerGUI:
             side=tk.LEFT, padx=(20, 0)
         )
 
-    def _create_results_area(self, parent, row=1):
+    def _create_search_frame(self, parent, row=0, column=0, **kwargs):
+        """Create the search frame for the results."""
+        # Default grid options
+        default_options = {'sticky': (tk.W, tk.E), 'pady': (0, 5)}
+        default_options.update(kwargs)
+        search_frame = ttk.Frame(parent)
+        search_frame.grid(row=row, column=column, **default_options)
+        # Configure two columns: label (fixed width) and entry (expanding)
+        search_frame.columnconfigure(0, weight=0)   # label column
+        search_frame.columnconfigure(1, weight=1)   # entry column
+
+        ttk.Label(search_frame, text="Search:").grid(
+            row=0, column=0, sticky=tk.W, padx=(0, 5)
+        )
+        self.search_entry = ttk.Entry(search_frame, textvariable=self.current_filter)
+        self.search_entry.grid(row=0, column=1, sticky=(tk.W, tk.E))
+        # Bind Enter key to trigger search (though trace already does it)
+        self.search_entry.bind('<Return>', lambda e: self.on_search_change(None, None, None))
+
+    def _create_results_area(self, parent, row=0, column=0, columnspan=1):
         """Create the results display area (treeview)."""
         ttk.Label(parent, text="Discovered Devices:").grid(
-            row=row, column=0, sticky=tk.W, pady=(0, 5)
+            row=row, column=column, columnspan=columnspan, sticky=tk.W, pady=(0, 5)
         )
 
         columns = ('timestamp', 'interface', 'chassis_id', 'port_id', 'ttl',
@@ -174,16 +270,86 @@ class LLDPScannerGUI:
         self.tree.column('sys_cap', width=150)
         self.tree.column('mgmt_addr', width=120)
 
-        # scrollbar for treeview
-        tv_scroll = ttk.Scrollbar(parent, orient=tk.VERTICAL,
-                                  command=self.tree.yview)
-        tv_scroll.grid(row=row+1, column=1, sticky=(tk.N, tk.S))
-        self.tree.configure(yscrollcommand=tv_scroll.set)
-        self.tree.grid(row=row+1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.tree.grid(row=row+1, column=column, columnspan=columnspan, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # ---- resize weights for results ------------------------------------
-        parent.columnconfigure(0, weight=1)
+        for col_idx in range(column, column + columnspan):
+            parent.columnconfigure(col_idx, weight=1)
         parent.rowconfigure(row+1, weight=1)
+
+        # Bind heading clicks for column menu
+        self.tree.bind('<Button-2>', self.show_column_menu)  # Right-click
+        self.tree.bind('<Button-3>', self.show_column_menu)  # Right-click (alternative)
+        for col in columns:
+            self.tree.heading(col, command=lambda c=col: self.show_column_menu(None, c))
+
+    def show_column_menu(self, event=None, column=None):
+        """Show a menu to toggle column visibility."""
+        # Create menu if not exists
+        if not hasattr(self, '_column_menu'):
+            self._column_menu = Menu(self.root, tearoff=0)
+            self._column_menu_entries = {}
+            columns = ('timestamp', 'interface', 'chassis_id', 'port_id', 'ttl',
+                       'sys_name', 'port_desc', 'sys_cap', 'mgmt_addr')
+            for col in columns:
+                var = tk.BooleanVar(value=True)  # Initially visible
+                self._column_vars[col] = var
+                self._column_menu_entries[col] = self._column_menu.add_checkbutton(
+                    label=col.replace('_', ' ').title(),
+                    variable=var,
+                    command=lambda c=col: self.toggle_column(c)
+                )
+        # Post menu at mouse position or widget
+        if event:
+            self._column_menu.tk_popup(event.x_root, event.y_root)
+        else:
+            # If called from heading, approximate position
+            self._column_menu.tk_popup(self.root.winfo_pointerx(), self.root.winfo_pointery())
+
+    def toggle_column(self, column):
+        """Toggle visibility of a column."""
+        if column in self._column_vars:
+            visible = self._column_vars[column].get()
+            if visible:
+                self.hidden_columns.discard(column)
+                # Restore width if we have it stored
+                if column in self.column_widths:
+                    self.tree.column(column, width=self.column_widths[column])
+                else:
+                    # Use default width
+                    self.tree.column(column, width=tk.Font().measure(column.replace('_', ' ').title()) + 20)
+            else:
+                # Store current width before hiding
+                current_width = self.tree.column(column, 'width')
+                if current_width != 0:
+                    self.column_widths[column] = current_width
+                self.hidden_columns.add(column)
+                self.tree.column(column, width=0)
+            self.save_settings()
+
+    def _apply_column_visibility(self):
+        """Apply stored column widths and hide/show columns."""
+        for col, width in self.column_widths.items():
+            self.tree.column(col, width=width)
+        for col in self.hidden_columns:
+            self.tree.column(col, width=0)
+
+    def on_search_change(self, *args):
+        """Filter results based on search text."""
+        search_text = self.current_filter.get().lower()
+        # Clear current view
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        # Re-add filtered results from all_results
+        for result in self.all_results:
+            # Check if any field contains the search text
+            match = False
+            for value in result.values():
+                if search_text in str(value).lower():
+                    match = True
+                    break
+            if match:
+                self.tree.insert('', tk.END, values=tuple(result.values()))
 
     # --------------------------------------------------------------------- #
     # Interface loading
@@ -439,6 +605,23 @@ class LLDPScannerGUI:
             mgmt_addr
         ))
 
+        # Also store in all_results for filtering
+        result_dict = {
+            'timestamp': timestamp,
+            'interface': ifname,
+            'chassis_id': info.get('chassis_id', ''),
+            'port_id': info.get('port_id', ''),
+            'ttl': info.get('ttl', ''),
+            'sys_name': info.get('sys_name', ''),
+            'port_desc': info.get('port_desc', ''),
+            'sys_cap': info.get('sys_cap', ''),
+            'mgmt_addr': mgmt_addr
+        }
+        self.all_results.append(result_dict)
+        # Limit all_results to prevent memory issues (keep last 1000)
+        if len(self.all_results) > 1000:
+            self.all_results = self.all_results[-1000:]
+
         # Limit to 100 rows to prevent memory issues
         children = self.tree.get_children()
         if len(children) > 100:
@@ -451,8 +634,110 @@ class LLDPScannerGUI:
         """Handle window closing"""
         if self.scanning:
             self.stop_scanning()
+        self.save_settings()
         self.root.destroy()
 
+    # --------------------------------------------------------------------- #
+    # Theme handling
+    # --------------------------------------------------------------------- #
+    def toggle_theme(self):
+        """Toggle between light and dark themes."""
+        self.dark_mode = not self.dark_mode
+        self.apply_theme()
+
+    def apply_theme(self):
+        """Apply the current theme (light or dark) to ttk widgets."""
+        if self.dark_mode:
+            # Dark theme colors
+            bg_color = '#2d2d2d'
+            fg_color = '#ffffff'
+            entry_bg = '#3c3f41'
+            select_bg = '#0078d7'
+            # Configure styles
+            self.style.theme_use('default')  # Start with default to override
+            self.style.configure('.', background=bg_color, foreground=fg_color)
+            self.style.configure('TFrame', background=bg_color)
+            self.style.configure('TLabel', background=bg_color, foreground=fg_color)
+            self.style.configure('TButton', background=bg_color, foreground=fg_color)
+            self.style.map('TButton',
+                           background=[('active', '#3c3f41'), ('pressed', '#1f1f1f')],
+                           foreground=[('disabled', '#a0a0a0')])
+            self.style.configure('TEntry', fieldbackground=entry_bg, foreground=fg_color)
+            self.style.configure('Treeview',
+                                 background=bg_color,
+                                 foreground=fg_color,
+                                 fieldbackground=bg_color)
+            self.style.map('Treeview',
+                           background=[('selected', select_bg)])
+            self.style.configure('TMenubutton', background=bg_color, foreground=fg_color)
+            # Configure listbox and scrollbars (tk widgets)
+            listbox_bg = '#1e1e1e'
+            listbox_fg = '#ffffff'
+            select_bg_listbox = '#0078d7'
+            select_fg_listbox = '#ffffff'
+            self.interface_listbox.configure(background=listbox_bg,
+                                             foreground=listbox_fg,
+                                             selectbackground=select_bg_listbox,
+                                             selectforeground=select_fg_listbox)
+            # ttk scrollbars will pick up style from above
+        else:
+            # Light theme (use system default)
+            self.style.theme_use('vista')  # Windows native look
+            # Ensure ttk uses default settings
+            self.style.configure('.')  # Reset to theme defaults
+            # Reset listbox to system defaults
+            self.interface_listbox.configure(background='white',
+                                             foreground='black',
+                                             selectbackground='#0078d7',
+                                             selectforeground='white')
+
+    # --------------------------------------------------------------------- #
+    # Settings handling
+    # --------------------------------------------------------------------- #
+    def load_settings(self):
+        """Load settings from JSON file."""
+        try:
+            if os.path.isfile(self.settings_file):
+                with open(self.settings_file, 'r') as f:
+                    settings = json.load(f)
+                # Apply settings
+                self.dark_mode = settings.get('dark_mode', False)
+                self.column_widths = settings.get('column_widths', {})
+                self.hidden_columns = set(settings.get('hidden_columns', []))
+                # Apply column visibility settings
+                self._apply_column_visibility()
+                self.current_filter.set(settings.get('search_text', ''))
+            else:
+                # Default settings
+                self.dark_mode = False
+                self.column_widths = {}
+                self.hidden_columns = set()
+                self.current_filter.set('')
+        except Exception as e:
+            print(f"ERROR loading settings: {e}")
+
+    def save_settings(self):
+        """Save settings to JSON file."""
+        try:
+            settings = {
+                'dark_mode': self.dark_mode,
+                'column_widths': self.column_widths,
+                'hidden_columns': list(self.hidden_columns),
+                'search_text': self.current_filter.get()
+            }
+            with open(self.settings_file, 'w') as f:
+                json.dump(settings, f, indent=4)
+        except Exception as e:
+            print(f"ERROR saving settings: {e}")
+
+    def apply_settings(self):
+        """Apply loaded settings to GUI."""
+        # Apply theme
+        self.apply_theme()
+        # Apply column visibility and widths
+        self._apply_column_visibility()
+        # Apply search text
+        self.current_filter.set(self.current_filter.get())
 
 
 def main():
