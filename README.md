@@ -15,6 +15,7 @@ A lightweight Windows application that discovers network devices using the Link 
   - Gracefully falls back to raw data for IPv6 or other address types.
 - **Result Export**: Click **Export Results** during or after a scan to save the entire table to a CSV file (UTF‑8 encoded) with a user‑chosen filename.
 - **Result Filtering**: Type in the **Search** box above the results table to filter rows in real‑time by any column (interface, chassis ID, system name, etc.). The search box is now positioned on the right side of the toolbar for a cleaner layout.
+- **Fixed Interface Selector Scrollbars**: The network interface listbox now includes functional vertical and horizontal scrollbars for smooth navigation when many interfaces are present.
 - **Column Visibility Control**: Click the **Columns** button (or right‑click any column header) to show/hide columns via a check‑box menu; visibility and column widths are persisted across sessions.
 - **Dark / Light Theme Toggle**: Use the **Toggle Theme** button to switch between a light (native Windows) and a dark theme; preference is saved and restored.
 - **Persistent Settings**: The application remembers your last‑selected interface, window size/position, column widths, hidden columns, theme choice, and search text, restoring them on the next launch.
