@@ -1,0 +1,4 @@
+LLDP Scanner build completed successfully!
+Timestamp: Mon, Jun 29, 2026 11:23:15 AM
+Executable: dist\LLDP-scanner.exe
+Build command: py -m PyInstaller --onefile --name LLDP-scanner --hidden-import=winreg lldp_gui.py
