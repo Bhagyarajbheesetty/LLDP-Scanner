@@ -28,7 +28,7 @@ from lldp_utils.parsing import (
     decode_lldp_packet
 )
 
-from lldp_utils.interface import list_interfaces
+from lldp_utils.interface import list_interfaces, is_valid_npf_name
 
 # ---------- WinPcap/Npcap structures via ctypes ----------
 try:
@@ -54,7 +54,7 @@ except OSError:
                 except OSError:
                     continue
         if not loaded:
-            print("Error: Unable to load wpcap.dll or Packet.dll. Ensure Npcap is installed in WinPcap-compatible mode.")
+            print("Error: Unable to load the required network library. Ensure Npcap is installed in WinPcap-compatible mode.")
             sys.exit(1)
 
 # Define structs needed for pcap API
@@ -175,7 +175,7 @@ class LLDPScanner:
         errbuf = create_string_buffer(256)
         self.adhandle = pcap_open_live(self.interface_npf.encode('mbcs'), 65535, 1, 1000, errbuf)
         if not self.adhandle:
-            raise RuntimeError(f"Unable to open adapter {self.interface_npf}: {errbuf_to_string(errbuf)}")
+            raise RuntimeError("Unable to open network adapter. Please check that the interface is available and you have sufficient permissions.")
         # Check link type (optional)
         linktype = pcap_datalink(self.adhandle)
         if linktype != 1:  # DLT_EN10MB
@@ -187,8 +187,7 @@ class LLDPScanner:
         def capture_loop():
             result = pcap_loop(self.adhandle, -1, cbfunc, self.user_data)
             if result == -1 and self.running:
-                err = pcap_geterr(self.adhandle)
-                print(f"Error during capture: {errbuf_to_string(err)}")
+                print("Error during packet capture. Please check your network adapter and try again.")
             self.stop()
         self.thread = threading.Thread(target=capture_loop, daemon=True)
         self.thread.start()
@@ -281,6 +280,9 @@ def main():
             idx = int(choice) - 1
             if 0 <= idx < len(ifaces):
                 _, iface_npf = ifaces[idx]
+                if not is_valid_npf_name(iface_npf):
+                    print(f"Invalid interface name: {iface_npf}. Please select a different interface.")
+                    continue
                 break
             else:
                 print("Invalid number.")
@@ -291,7 +293,7 @@ def main():
     errbuf = create_string_buffer(256)
     adhandle = pcap_open_live(iface_npf.encode('mbcs'), 65535, 1, 1000, errbuf)
     if not adhandle:
-        print(f"\nUnable to open adapter {iface_npf}. {errbuf_to_string(errbuf)}")
+        print("\nUnable to open network adapter. Please check that the interface is available and you have sufficient permissions.")
         sys.exit(1)
 
     # Check link type (optional)
@@ -312,7 +314,7 @@ def main():
         result = pcap_loop(adhandle, -1, cbfunc, user_data)
         if result == -1:
             err = pcap_geterr(adhandle)
-            print(f"\nError during capture: {errbuf_to_string(err)}")
+            print("\nError during packet capture. Please check your network adapter and try again.")
         pcap_close(adhandle)
 
     t = threading.Thread(target=capture_loop, daemon=True)

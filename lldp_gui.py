@@ -14,7 +14,7 @@ import json
 import os
 
 from lldp_scanner import LLDPScanner
-from lldp_utils.interface import list_interfaces
+from lldp_utils.interface import list_interfaces, is_valid_npf_name
 
 
 class LLDPScannerGUI:
@@ -337,6 +337,9 @@ class LLDPScannerGUI:
     def on_search_change(self, *args):
         """Filter results based on search text."""
         search_text = self.current_filter.get().lower()
+        # Limit the length of search_text to prevent DoS via overly long strings
+        if len(search_text) > 100:
+            search_text = search_text[:100]
         # Clear current view
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -378,8 +381,8 @@ class LLDPScannerGUI:
                 self.status_var.set("No interfaces found")
 
         except Exception as e:
-            self.status_var.set(f"Error loading interfaces: {e}")
-            print(f"ERROR loading interfaces: {e}", flush=True)
+            self.status_var.set("Error loading network interfaces. Please check your network configuration.")
+            print("ERROR loading interfaces", flush=True)
 
     # --------------------------------------------------------------------- #
     # Selection handler
@@ -391,9 +394,14 @@ class LLDPScannerGUI:
             idx = int(selection[0])
             if hasattr(self, 'interface_data') and idx < len(self.interface_data):
                 friendly, iface_npf = self.interface_data[idx]
-                self.selected_iface_npf = iface_npf
-                self.start_btn.config(state="normal")
-                self.status_var.set(f"Selected: {friendly}")
+                if not is_valid_npf_name(iface_npf):
+                    self.selected_iface_npf = None
+                    self.start_btn.config(state="disabled")
+                    self.status_var.set(f"Invalid interface: {friendly}")
+                else:
+                    self.selected_iface_npf = iface_npf
+                    self.start_btn.config(state="normal")
+                    self.status_var.set(f"Selected: {friendly}")
             else:
                 self.start_btn.config(state="disabled")
         else:
@@ -432,8 +440,8 @@ class LLDPScannerGUI:
                 self.export_btn.config(state="normal")
 
         except Exception as e:
-            self.status_var.set(f"Error starting scan: {e}")
-            print(f"ERROR starting scan: {e}", flush=True)
+            self.status_var.set("Error starting scan. Please check your network adapter and permissions.")
+            print("ERROR starting scan", flush=True)
 
     def stop_scanning(self):
         """Stop LLDP scanning"""

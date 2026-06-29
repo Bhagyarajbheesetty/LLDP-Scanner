@@ -5,8 +5,33 @@ Wrapper around the Npcap/WinPcap calls that returns a list of
 
 import sys
 import os
+import re
 from ctypes import *
 from ctypes.wintypes import *
+
+
+def is_valid_npf_name(npname: str) -> bool:
+    """
+    Validate that the NPF name matches the expected pattern:
+    \\Device\\NPF_{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
+    where x is a hexadecimal digit.
+    """
+    # Use re.escape on static parts to build the pattern dynamically
+    static_start = r'\Device\NPF_{'
+    static_end = '}'
+    escaped_start = re.escape(static_start)
+    escaped_end = re.escape(static_end)
+
+    # The variable part in the middle: 8 hex, -, 4 hex, -, 4 hex, -, 4 hex, -, 12 hex
+    hex_pattern = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+
+    # Combine: escaped_start + hex_pattern + escaped_end
+    pattern_without_anchors = escaped_start + hex_pattern + escaped_end
+
+    # Add anchors
+    pattern = '^' + pattern_without_anchors + '$'
+
+    return bool(re.match(pattern, npname))
 
 # Re‑use the same wpcap loading logic from lldp_scanner.py
 try:
