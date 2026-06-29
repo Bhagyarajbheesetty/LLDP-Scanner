@@ -14,21 +14,27 @@ A lightweight Windows application that discovers network devices using the Link 
   - Extracts and displays IPv4 addresses in dotted‑decimal format (e.g., `192.168.1.1`).
   - Gracefully falls back to raw data for IPv6 or other address types.
 - **Result Export**: Click **Export Results** during or after a scan to save the entire table to a CSV file (UTF‑8 encoded) with a user‑chosen filename.
-- **Result Filtering**: Type in the **Search** box above the results table to filter rows in real‑time by any column (interface, chassis ID, system name, etc.). The search box is now positioned on the right side of the toolbar for a cleaner layout.
+- **Result Filtering**: Type in the **Search** box above the results table to filter rows in real‑time by any column (interface, chassis ID, system name, etc.). The search box is positioned on the right side of the toolbar for a cleaner layout.
 - **Fixed Interface Selector Scrollbars**: The network interface listbox now includes functional vertical and horizontal scrollbars for smooth navigation when many interfaces are present.
 - **Column Visibility Control**: Click the **Columns** button (or right‑click any column header) to show/hide columns via a check‑box menu; visibility and column widths are persisted across sessions.
 - **Dark / Light Theme Toggle**: Use the **Toggle Theme** button to switch between a light (native Windows) and a dark theme; preference is saved and restored.
 - **Persistent Settings**: The application remembers your last‑selected interface, window size/position, column widths, hidden columns, theme choice, and search text, restoring them on the next launch.
-- **Memory‑Efficient**: Limits the displayed table to the 100 most recent entries to avoid unbounded growth.
+- **Memory‑Efficient**: Limits the displayed table to the 100 most recent entries to prevent unbounded growth.
 - **Plug‑and‑Play**: Requires only Npcap installed in WinPcap‑API compatible mode.
 - **Single Executable**: Can be bundled with PyInstaller for easy distribution.
 - **Command‑Line Interface**: The original CLI (`python lldp_scanner.py`) remains available for users who prefer a terminal.
+- **Security Enhancements**:
+  - **Input Validation**: NPF interface names are strictly validated using a regex pattern that prevents injection or malformed input.
+  - **Error Message Sanitization**: All user‑facing error messages are generic (e.g., “Unable to open network adapter”) to avoid leaking internal details such as DLL names or stack traces.
+  - **Denial‑of‑Service Protection**: Search input is limited to 100 characters to prevent excessive memory consumption from overly long strings.
+  - **Safe Library Loading**: The application attempts to load `wpcap.dll` or `Packet.dll` from known safe locations and provides a clear, generic error if the libraries cannot be found.
+  - **Least Privilege Principle**: While the application still requires administrator rights to access raw network sockets (a requirement of WinPcap/Npcap), all other operations run with standard user privileges.
 
 ## Prerequisites
 
 - **Windows 10/11**
 - **Npcap** installed in *WinPcap API‑compatible mode*  
-  (Download from https://nmap.org/npcap/ and ensure the option **"Install Npcap in WinPcap API-compatible Mode"** is checked)
+  (Download from https://nmap.org/npcap/ and ensure the option **“Install Npcap in WinPcap API-compatible Mode”** is checked)
 - The application must be run **as Administrator** to access raw network sockets.
 
 ## Build Instructions
@@ -56,7 +62,7 @@ A lightweight Windows application that discovers network devices using the Link 
    - The button grays out, **Stop Scan** becomes active, and the status bar shows `Scanning on <interface>`.
 4. Discovered devices appear in the table on the right, with the newest entries at the top.
    - The **Management Address** column shows a readable IP address when available (e.g., `192.168.1.1`).
-5. Use the **Search** box above the table to filter results instantly by any column. The search box is now located on the right side of the toolbar.
+5. Use the **Search** box above the table to filter results instantly by any column. The search box is located on the right side of the toolbar.
 6. Click the **Columns** button (or right‑click any column header) to show or hide columns; your visibility choices and column widths are remembered.
 7. Click **Toggle Theme** to switch between a light and a dark appearance; your preference is saved.
 8. To stop capturing, click **Stop Scan**. Controls return to their initial state.
@@ -83,7 +89,7 @@ The GUI version runs a simple Tkinter interface that updates in real‑time as L
 
 - LLDP is a link‑layer protocol; you will only see devices directly connected to the selected interface (not across routers).
 - If no LLDP traffic is detected, the application will appear idle until a frame arrives or you stop the scan.
-- The executable bundles the Python interpreter and required libraries; a separate Python installation is not required on the target machine (provided Ncpap is present).
+- The executable bundles the Python interpreter and required libraries; a separate Python installation is not required on the target machine (provided Npcap is present).
 
 ## License
 
